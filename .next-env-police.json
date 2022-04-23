@@ -1,0 +1,10 @@
+{
+    "envs": [
+        ".env"
+    ],
+    "ignoreVarsByPrefix": [
+        "NEXT_PUBLIC"
+    ],
+    "dir": ".next/static",
+    "verbose": false
+}
