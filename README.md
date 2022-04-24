@@ -1,5 +1,5 @@
 # Next Env Police 🚓
-searches a built nextjs static directory for an env variables not prefixed as public
+searches a built nextjs static directory for any env variables not prefixed as public
 
 ## what is this
 This is a cli tool to check a nextjs build directory for an env variables that might have slipped out.
