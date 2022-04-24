@@ -26,7 +26,8 @@ Create a `.next-env-police.json` with the following;
         "NEXT_PUBLIC"
     ],
     "dir": ".next/static",
-    "verbose": false
+    "verbose": false,
+    "throws: "false
 }
 ```
 
@@ -36,4 +37,15 @@ If there are certain env variabes you wan to ignore, you can add them to ignoreV
 
 Code only looks in `.next/static` by default. I doubt you want to check the server files, since the vars are likely needed there.
 
-Verbose flag as true will log out additional info.
+verbose option as true will log out additional info.
+
+If throws option is true, will throw an error to bust a CI.
+
+# tests
+
+to test library internally;
+
+```
+yarn build
+yarn start -o test/fixtures/.test.next-env-police.json
+```

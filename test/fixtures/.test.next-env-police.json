@@ -1,0 +1,10 @@
+{
+    "envs": [
+        "test/fixtures/.test.env"
+    ],
+    "ignoreVarsByPrefix": [
+        "NEXT_PUBLIC"
+    ],
+    "dir": "test/fixtures/.next/static",
+    "verbose": true
+}

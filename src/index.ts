@@ -2,17 +2,31 @@ import chalk from 'chalk';
 import fs from 'fs';
 import { DotenvParseOutput, parse } from 'dotenv';
 import { resolve } from 'path';
+import _yargs from 'yargs';
 
+interface yargOptions {
+  o?: string;
+  options?: string;
+  [x: string]: unknown;
+  _: (string | number)[];
+  $0: string;
+}
 interface policeOptions {
   envs?: string[];
   dir?: string;
   ignoreVars?: string[];
   ignoreVarsByPrefix?: string[];
   verbose?: boolean;
+  throws?: boolean;
 }
 
+const argv = _yargs(process.argv.slice(2))
+  .alias('o', 'options')
+  .describe('o', 'overide default location for options file')
+  .help('help').argv as yargOptions;
+
 const encoding = 'utf8';
-const configFilename = '.next-env-police.json';
+const configFilename = argv && argv.options ? argv.options : '.next-env-police.json';
 
 const loadEnv = async (env = '.env') => {
   try {
@@ -35,17 +49,23 @@ const getFiles = async (dir) => {
   return Array.prototype.concat(...files);
 };
 
-const checkFile = async (file, env, cfg, key) => {
-  await fs.readFile(file, (err, data) => {
+const checkFile = async (file, env, cfg, key, envFile): Promise<string> => {
+  await fs.readFile(file, (err, data): string => {
     if (err) {
       if (cfg.verbose) console.log(chalk.blue(`🚓 error reading file ${file} | ${err}`));
       throw err;
     }
 
     if (data.includes(env[key])) {
-      console.log(chalk.red(`🚓 🚨 this file ${file} includes value of this key '${key}' 🚨 🚓`));
+      if (cfg.throws) {
+        return `env: ${envFile} has key '${key}' and found value in ${file}`;
+      } else {
+        console.log(chalk.red(`🚓 env: ${envFile} has key '${key}' and found value in ${file}`));
+      }
     }
+    return '';
   });
+  return '';
 };
 
 const grabConfig = async () => {
@@ -75,10 +95,7 @@ const filterFiles = (files: string[]) => files.filter((f: string) => f.endsWith(
 const filterSafeKeys = (keys: string[], cfg: policeOptions) =>
   keys.filter((k) => !cfg.ignoreVarsByPrefix.some((prefix) => k.startsWith(prefix)));
 
-const searchBuiltByEnv = async (env, cfg) => {
-  if (!env) {
-    return;
-  }
+const searchBuiltByEnv = async (env, cfg, envFile) => {
   const keys = Object.keys(env);
   const unsafeKeys = filterSafeKeys(keys, cfg);
 
@@ -91,11 +108,11 @@ const searchBuiltByEnv = async (env, cfg) => {
       chalk.blue(`unsafeFiles: ${unsafeFiles}`)
     );
 
-  await Promise.all(
-    unsafeKeys.map(async (key): Promise<void> => {
-      unsafeFiles.map(async (fileName): Promise<void> => {
+  return await Promise.all(
+    unsafeKeys.map(async (key): Promise<Promise<string>[]> => {
+      return await unsafeFiles.map(async (fileName): Promise<string> => {
         if (cfg.verbose) console.log(chalk.blue(`🚓 checking file: ${fileName} with key ${key} `));
-        await checkFile(fileName, env, cfg, key);
+        return await checkFile(fileName, env, cfg, key, envFile);
       });
     })
   );
@@ -106,13 +123,20 @@ const start = async () => {
 
   const { envs } = cfg;
 
-  await Promise.all(
-    envs.map(async (envFile): Promise<void> => {
+  const bads = await Promise.all(
+    envs.map(async (envFile): Promise<any> => {
       const env: DotenvParseOutput | false = await loadEnv(envFile);
-      if (cfg.verbose) console.log(`🚓 env ${env}: ${chalk.blue(JSON.stringify(env))}`);
-      await searchBuiltByEnv(env, cfg);
+      if (cfg.verbose)
+        console.log(`🚓 env ${JSON.stringify(env)}: ${chalk.blue(JSON.stringify(env))}`);
+      return await searchBuiltByEnv(env, cfg, envFile);
     })
   );
+  if (cfg.throw) {
+    const err = new Error('🚓 found private env vars in your built app');
+    err.message = JSON.stringify(bads);
+    console.log(chalk.red(`🚓 found private env vars in your built app | ${JSON.stringify(bads)}`));
+    throw err;
+  }
 };
 
 // get 'em boys
